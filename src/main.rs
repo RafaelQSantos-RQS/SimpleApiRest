@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
+use tokio::sync::RwLock;
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -12,7 +13,8 @@ use std::cmp::Ordering;
 mod models;
 mod errors;
 
-type TarefasDb = Arc<Mutex<HashMap<Uuid, models::Tarefa>>>;
+//type TarefasDb = Arc<Mutex<HashMap<Uuid, models::Tarefa>>>;
+type TarefasDb = Arc<RwLock<HashMap<Uuid, models::Tarefa>>>;
 
 #[derive(Clone)]
 struct AppState {
@@ -23,9 +25,8 @@ async fn listar_tarefas (
     State(state): State<AppState>,
     Query(params): Query<models::TarefaParametros>,
 ) -> Result<Json<Vec<models::Tarefa>>, errors::AppError> {
-    let db = state.db.lock().map_err(|e| {
-        errors::AppError::Interno(format!("Erro ao acessar o banco: {}", e))
-    })?;
+
+    let db = state.db.read().await;
 
     let mut tarefas: Vec<models::Tarefa> = db
         .values()
@@ -60,9 +61,7 @@ async fn buscar_tarefa (
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<models::Tarefa>, errors::AppError> {
-    let db = state.db.lock().map_err(|e| {
-        errors::AppError::Interno(format!("Erro ao acessar o banco: {}", e))
-    })?;
+    let db = state.db.read().await;
 
     db.get(&id)
         .cloned()
@@ -90,9 +89,7 @@ async fn criar_tarefa(
         atualizada_em: agora
     };
 
-    let mut db = state.db.lock().map_err(|e| {
-        errors::AppError::Interno(format!("Erro ao acessar o banco: {}", e))
-    })?;
+    let mut db = state.db.write().await;
 
     db.insert(tarefa.id, tarefa.clone());
 
@@ -104,9 +101,7 @@ async fn atualiza_tarefa(
     Path(id): Path<Uuid>,
     Json(payload): Json<models::AtualizarTarefaRequest>
 ) -> Result<Json<models::Tarefa>, errors::AppError> {
-    let mut db = state.db.lock().map_err(|e| {
-        errors::AppError::Interno(format!("Erro ao acessar o banco: {}", e))
-    })?;
+    let mut db = state.db.write().await;
 
     let tarefa = db.get_mut(&id).ok_or(errors::AppError::NaoEncontrada)?;
 
@@ -136,11 +131,7 @@ async fn deletar_tarefa(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, errors::AppError> {
-    let mut db = state.db.lock().map_err(
-        |e| {
-            errors::AppError::Interno(format!("Erro ao acessar o banco de dados: {}", e))
-        }
-    )?;
+    let mut db = state.db.write().await;
 
     db.remove(&id).ok_or(errors::AppError::NaoEncontrada)?;
 
@@ -151,7 +142,7 @@ async fn deletar_tarefa(
 async fn main() {
     // Initial state
     let shared_state = AppState {
-        db: Arc::new(Mutex::new(HashMap::new())),
+        db: Arc::new(RwLock::new(HashMap::new())),
     };
 
     let app = Router::new()

@@ -6,8 +6,7 @@ use serde_json::json;
 #[derive(Debug)]
 pub enum AppError {
     NaoEncontrada,
-    DadosInvalidos(String),
-    Interno(String),
+    DadosInvalidos(String)
 }
 
 impl IntoResponse for AppError {
@@ -18,9 +17,6 @@ impl IntoResponse for AppError {
             }
             AppError::DadosInvalidos(msg) => {
                 (StatusCode::BAD_REQUEST, msg)
-            }
-            AppError::Interno(msg) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, msg)
             }
         };
 
