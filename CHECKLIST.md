@@ -444,8 +444,8 @@ Se quiser ir além:
 
 - [x] Implementar **filtro por status** (`GET /tarefas?concluida=true`)
 - [x] Implementar **paginação** (`GET /tarefas?pagina=1&limite=10`)
-- [ ] Usar **`tokio::sync::RwLock`** em vez de `Mutex` (por quê seria melhor?)
-- [ ] Extrair a lógica para um **service layer** (`src/services.rs`)
+- [x] Usar **`tokio::sync::RwLock`** em vez de `Mutex` (por quê seria melhor?)
+- [x] Extrair a lógica para um **service layer** (`src/services.rs`)
 - [ ] Adicionar **testes de integração** com `axum::test`
 - [ ] Adicionar **logging** com `tracing` + `tracing-subscriber`
 - [ ] Adicionar **validação** com `validator` crate

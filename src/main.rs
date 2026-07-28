@@ -6,14 +6,14 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     routing::{get, post}, Router};
-use chrono::Utc;
 use uuid::Uuid;
-use std::cmp::Ordering;
+
+use crate::services::{atualizar_tarefa, buscar_tarefa, criar_tarefa, deletar_tarefa, listar_tarefas};
 
 mod models;
 mod errors;
+mod services;
 
-//type TarefasDb = Arc<Mutex<HashMap<Uuid, models::Tarefa>>>;
 type TarefasDb = Arc<RwLock<HashMap<Uuid, models::Tarefa>>>;
 
 #[derive(Clone)]
@@ -21,120 +21,46 @@ struct AppState {
     db: TarefasDb,
 }
 
-async fn listar_tarefas (
+async fn listar_tarefas_handler (
     State(state): State<AppState>,
     Query(params): Query<models::TarefaParametros>,
 ) -> Result<Json<Vec<models::Tarefa>>, errors::AppError> {
-
-    let db = state.db.read().await;
-
-    let mut tarefas: Vec<models::Tarefa> = db
-        .values()
-        .filter(
-            |t| {
-                params.concluida.is_none_or(|filtro| t.concluida == filtro)
-            }
-        )
-        .cloned()
-        .collect();
-
-    tarefas.sort_by(|a,b| {
-        match a.criada_em.cmp(&b.criada_em) {
-            Ordering::Equal => a.id.cmp(&b.id),
-            other => other
-        }
-    });
-    
-    let pagina = params.pagina.unwrap_or(1).max(1) as usize;
-    let limite = params.limite.unwrap_or(10).max(1) as usize;
-
-    let tarefas_paginadas: Vec<models::Tarefa> =  tarefas
-        .into_iter()
-        .skip((pagina-1)*limite)
-        .take(limite)
-        .collect();
-
+    let tarefas_paginadas = listar_tarefas(&state.db, params).await?;
     Ok(Json(tarefas_paginadas))
 }
 
-async fn buscar_tarefa (
+async fn buscar_tarefa_handler (
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<models::Tarefa>, errors::AppError> {
-    let db = state.db.read().await;
+    let tarefa_buscada = buscar_tarefa(&state.db, id).await?;
 
-    db.get(&id)
-        .cloned()
-        .ok_or(errors::AppError::NaoEncontrada)
-        .map(Json)
+    Ok(Json(tarefa_buscada))
 }
 
-async fn criar_tarefa(
+async fn criar_tarefa_handler(
     State(state): State<AppState>,
     Json(payload): Json<models::CriarTarefaRequest>,
 ) -> Result<(StatusCode, Json<models::Tarefa>), errors::AppError> {
-    if payload.titulo.trim().is_empty() {
-        return Err(errors::AppError::DadosInvalidos(
-            "O título não pode estar vazio".to_string(),
-        ));
-    }
+    let tarefa_criada = criar_tarefa(&state.db, payload).await?;
 
-    let agora = Utc::now();
-    let tarefa = models::Tarefa {
-        id: Uuid::new_v4(),
-        titulo: payload.titulo,
-        descricao: payload.descricao.unwrap_or_default(),
-        concluida: false,
-        criada_em: agora,
-        atualizada_em: agora
-    };
-
-    let mut db = state.db.write().await;
-
-    db.insert(tarefa.id, tarefa.clone());
-
-    Ok((StatusCode::CREATED, Json(tarefa)))
+    Ok((StatusCode::CREATED, Json(tarefa_criada)))
 }
 
-async fn atualiza_tarefa(
+async fn atualiza_tarefa_handler(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Json(payload): Json<models::AtualizarTarefaRequest>
 ) -> Result<Json<models::Tarefa>, errors::AppError> {
-    let mut db = state.db.write().await;
-
-    let tarefa = db.get_mut(&id).ok_or(errors::AppError::NaoEncontrada)?;
-
-    if let Some(titulo) = payload.titulo {
-        if titulo.trim().is_empty() {
-            return Err(errors::AppError::DadosInvalidos(
-                "O título não pode estar vazio".to_string(),
-            ));
-        }
-        tarefa.titulo = titulo;
-    }
-
-    if let Some(descricao) = payload.descricao {
-        tarefa.descricao = descricao;
-    }
-
-    if let Some(concluida) = payload.concluida {
-        tarefa.concluida = concluida;
-    }
-
-    tarefa.atualizada_em = Utc::now();
-
-    Ok(Json(tarefa.clone()))
+    let tarefa_atualizada = atualizar_tarefa(&state.db, id, payload).await?;
+    Ok(Json(tarefa_atualizada))
 }
 
-async fn deletar_tarefa(
+async fn deletar_tarefa_handler (
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, errors::AppError> {
-    let mut db = state.db.write().await;
-
-    db.remove(&id).ok_or(errors::AppError::NaoEncontrada)?;
-
+    deletar_tarefa(&state.db, id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -146,13 +72,13 @@ async fn main() {
     };
 
     let app = Router::new()
-        .route("/tarefas", get(listar_tarefas))
-        .route("/tarefas", post(criar_tarefa))
+        .route("/tarefas", get(listar_tarefas_handler))
+        .route("/tarefas", post(criar_tarefa_handler))
         .route(
             "/tarefas/{id}",
-            get(buscar_tarefa)
-            .put(atualiza_tarefa)
-            .delete(deletar_tarefa)
+            get(buscar_tarefa_handler)
+            .put(atualiza_tarefa_handler)
+            .delete(deletar_tarefa_handler)
         )
         .with_state(shared_state);
 

@@ -13,7 +13,7 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, mensagem) = match self {
             AppError::NaoEncontrada => {
-                (StatusCode::NOT_FOUND, "Tarefa não não encontrada".to_string())
+                (StatusCode::NOT_FOUND, "Tarefa não encontrada".to_string())
             }
             AppError::DadosInvalidos(msg) => {
                 (StatusCode::BAD_REQUEST, msg)
