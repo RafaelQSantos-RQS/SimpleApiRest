@@ -446,7 +446,7 @@ Se quiser ir além:
 - [x] Implementar **paginação** (`GET /tarefas?pagina=1&limite=10`)
 - [x] Usar **`tokio::sync::RwLock`** em vez de `Mutex` (por quê seria melhor?)
 - [x] Extrair a lógica para um **service layer** (`src/services.rs`)
-- [ ] Adicionar **testes de integração** com `axum::test`
+- [x] Adicionar **testes de integração** com `axum::test`
 - [ ] Adicionar **logging** com `tracing` + `tracing-subscriber`
 - [ ] Adicionar **validação** com `validator` crate
 - [ ] Mudar para **banco de dados real** (SQLite com `sqlx`)
