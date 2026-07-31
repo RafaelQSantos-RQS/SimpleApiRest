@@ -3,7 +3,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 
 pub enum LogFormat {
     Pretty,
-    Json
+    Json,
 }
 
 pub struct Config {
@@ -24,14 +24,13 @@ impl Config {
         };
 
         Self {
-            server_addr: SocketAddr::from(([0,0,0,0], port)),
-            log_format
+            server_addr: SocketAddr::from(([0, 0, 0, 0], port)),
+            log_format,
         }
     }
 
     pub fn init_logging(&self) {
-        let subscriber = tracing_subscriber::fmt()
-            .with_span_events(FmtSpan::CLOSE);
+        let subscriber = tracing_subscriber::fmt().with_span_events(FmtSpan::CLOSE);
 
         match self.log_format {
             LogFormat::Json => subscriber.json().init(),

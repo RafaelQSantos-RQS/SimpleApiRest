@@ -24,25 +24,29 @@ impl IntoResponse for AppError {
         let (status, mensagem) = match &self {
             AppError::NaoEncontrada => {
                 error!(?self, "Tarefa não encontrada");
-                (StatusCode::NOT_FOUND, json!({"erro": "Tarefa não encontrada"}))
+                (
+                    StatusCode::NOT_FOUND,
+                    json!({"erro": "Tarefa não encontrada"}),
+                )
             }
             AppError::Validacao(erros) => {
                 warn!(?self, "Erro de validação");
                 let detalhes: Vec<String> = erros
                     .field_errors()
                     .iter()
-                    .flat_map(
-                        |(campo, erros)| {
-                            erros.iter().map(move |e| {
-                                e.message
-                                    .as_ref()
-                                    .map(|m| m.to_string())
-                                    .unwrap_or_else(|| format!("{} inválido", campo))
-                            }
-                            )
-                        }
-                    ).collect();
-                    (StatusCode::BAD_REQUEST, json!({"erro": "Dados inválidos", "detalhes": detalhes}))
+                    .flat_map(|(campo, erros)| {
+                        erros.iter().map(move |e| {
+                            e.message
+                                .as_ref()
+                                .map(|m| m.to_string())
+                                .unwrap_or_else(|| format!("{} inválido", campo))
+                        })
+                    })
+                    .collect();
+                (
+                    StatusCode::BAD_REQUEST,
+                    json!({"erro": "Dados inválidos", "detalhes": detalhes}),
+                )
             }
         };
 

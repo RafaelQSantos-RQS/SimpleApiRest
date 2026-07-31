@@ -161,10 +161,7 @@ async fn teste_criar_tarefa_com_titulo_de_espacos() {
         "descricao": "Teste de espaços vazios",
     });
 
-    let resposta = server
-        .post("/tarefas")
-        .json(&body)
-        .await;
+    let resposta = server.post("/tarefas").json(&body).await;
 
     assert_eq!(resposta.status_code(), StatusCode::BAD_REQUEST);
 }

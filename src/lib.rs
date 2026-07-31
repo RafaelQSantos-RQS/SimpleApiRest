@@ -87,7 +87,7 @@ pub async fn atualiza_tarefa_handler(
     Json(payload): Json<models::AtualizarTarefaRequest>,
 ) -> Result<Json<models::Tarefa>, errors::AppError> {
     payload.validate()?;
-    
+
     info!(id = %id,
         "Atualizando tarefa"
     );

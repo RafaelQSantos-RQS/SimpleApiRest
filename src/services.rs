@@ -1,9 +1,9 @@
 use chrono::Utc;
-use tracing::instrument;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{errors, models};
