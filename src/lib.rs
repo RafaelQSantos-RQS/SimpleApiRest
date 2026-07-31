@@ -14,6 +14,8 @@ use crate::services::{
     atualizar_tarefa, buscar_tarefa, criar_tarefa, deletar_tarefa, listar_tarefas,
 };
 
+use validator::Validate;
+
 mod errors;
 mod models;
 mod services;
@@ -62,6 +64,8 @@ pub async fn criar_tarefa_handler(
     State(state): State<AppState>,
     Json(payload): Json<models::CriarTarefaRequest>,
 ) -> Result<(StatusCode, Json<models::Tarefa>), errors::AppError> {
+    payload.validate()?;
+
     info!(
         titulo = %payload.titulo,
         descricao = payload.descricao,
@@ -82,6 +86,8 @@ pub async fn atualiza_tarefa_handler(
     Path(id): Path<Uuid>,
     Json(payload): Json<models::AtualizarTarefaRequest>,
 ) -> Result<Json<models::Tarefa>, errors::AppError> {
+    payload.validate()?;
+    
     info!(id = %id,
         "Atualizando tarefa"
     );

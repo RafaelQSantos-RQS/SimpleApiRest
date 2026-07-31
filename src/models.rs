@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tarefa {
@@ -12,14 +13,24 @@ pub struct Tarefa {
     pub atualizada_em: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+fn titulo_vazio(titulo: &str) -> Result<(), validator::ValidationError> {
+    if titulo.trim().is_empty() {
+        return Err(validator::ValidationError::new("titulo_vazio")
+            .with_message("O título não pode estar vazio".into()));
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize, Validate)]
 pub struct CriarTarefaRequest {
+    #[validate(custom(function = "titulo_vazio"))]
     pub titulo: String,
     pub descricao: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct AtualizarTarefaRequest {
+    #[validate(custom(function = "titulo_vazio"))]
     pub titulo: Option<String>,
     pub descricao: Option<String>,
     pub concluida: Option<bool>,

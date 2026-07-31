@@ -151,3 +151,20 @@ async fn teste_deletar_tarefa_com_sucesso() {
 
     req_deletar.assert_status(StatusCode::NO_CONTENT);
 }
+
+#[tokio::test]
+async fn teste_criar_tarefa_com_titulo_de_espacos() {
+    let server = criar_servidor_teste();
+
+    let body = json!({
+        "titulo": "    ",
+        "descricao": "Teste de espaços vazios",
+    });
+
+    let resposta = server
+        .post("/tarefas")
+        .json(&body)
+        .await;
+
+    assert_eq!(resposta.status_code(), StatusCode::BAD_REQUEST);
+}

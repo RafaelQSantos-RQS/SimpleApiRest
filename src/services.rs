@@ -15,12 +15,6 @@ pub async fn criar_tarefa(
     db: &TarefasDb,
     payload: models::CriarTarefaRequest,
 ) -> Result<models::Tarefa, errors::AppError> {
-    if payload.titulo.trim().is_empty() {
-        return Err(errors::AppError::DadosInvalidos(
-            "O título não pode estar vazio".to_string(),
-        ));
-    }
-
     let agora = Utc::now();
     let tarefa_a_ser_criada = models::Tarefa {
         id: Uuid::new_v4(),
@@ -49,13 +43,7 @@ pub async fn atualizar_tarefa(
     // Buscando se o ID existe no banco
     let tarefa = db.get_mut(&id).ok_or(errors::AppError::NaoEncontrada)?;
 
-    // Verificando se o payload está vindo com titulo vazio
     if let Some(titulo) = payload.titulo {
-        if titulo.trim().is_empty() {
-            return Err(errors::AppError::DadosInvalidos(
-                "O título não pode estar vazio".to_string(),
-            ));
-        }
         tarefa.titulo = titulo;
     }
 

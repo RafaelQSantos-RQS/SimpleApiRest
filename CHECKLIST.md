@@ -448,7 +448,7 @@ Se quiser ir além:
 - [x] Extrair a lógica para um **service layer** (`src/services.rs`)
 - [x] Adicionar **testes de integração** com `axum::test`
 - [x] Adicionar **logging** com `tracing` + `tracing-subscriber`
-- [ ] Adicionar **validação** com `validator` crate
+- [x] Adicionar **validação** com `validator` crate
 - [ ] Mudar para **banco de dados real** (SQLite com `sqlx`)
 - [ ] Adicionar **autenticação** com JWT
 
