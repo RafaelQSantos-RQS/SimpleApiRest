@@ -29,5 +29,5 @@ pub struct AtualizarTarefaRequest {
 pub struct TarefaParametros {
     pub concluida: Option<bool>,
     pub pagina: Option<i32>,
-    pub limite: Option<i32>
+    pub limite: Option<i32>,
 }

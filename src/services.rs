@@ -1,7 +1,8 @@
+use chrono::Utc;
+use tracing::instrument;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
-use chrono::Utc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -9,12 +10,15 @@ use crate::{errors, models};
 
 type TarefasDb = Arc<RwLock<HashMap<Uuid, models::Tarefa>>>;
 
-pub async fn criar_tarefa (
+#[instrument(skip(db), fields(titulo = %payload.titulo))]
+pub async fn criar_tarefa(
     db: &TarefasDb,
     payload: models::CriarTarefaRequest,
 ) -> Result<models::Tarefa, errors::AppError> {
     if payload.titulo.trim().is_empty() {
-        return Err(errors::AppError::DadosInvalidos("O título não pode estar vazio".to_string()));
+        return Err(errors::AppError::DadosInvalidos(
+            "O título não pode estar vazio".to_string(),
+        ));
     }
 
     let agora = Utc::now();
@@ -24,7 +28,7 @@ pub async fn criar_tarefa (
         descricao: payload.descricao.unwrap_or_default(),
         concluida: false,
         criada_em: agora,
-        atualizada_em: agora
+        atualizada_em: agora,
     };
 
     let mut db = db.write().await;
@@ -34,10 +38,11 @@ pub async fn criar_tarefa (
     Ok(tarefa_a_ser_criada)
 }
 
-pub async fn atualizar_tarefa (
+#[instrument(skip(db), fields(id = %id))]
+pub async fn atualizar_tarefa(
     db: &TarefasDb,
     id: Uuid,
-    payload: models::AtualizarTarefaRequest
+    payload: models::AtualizarTarefaRequest,
 ) -> Result<models::Tarefa, errors::AppError> {
     let mut db = db.write().await;
 
@@ -67,10 +72,8 @@ pub async fn atualizar_tarefa (
     Ok(tarefa.clone())
 }
 
-pub async fn deletar_tarefa (
-    db: &TarefasDb,
-    id: Uuid
-) -> Result<(),errors::AppError> {
+#[instrument(skip(db), fields(id = %id))]
+pub async fn deletar_tarefa(db: &TarefasDb, id: Uuid) -> Result<(), errors::AppError> {
     let mut db = db.write().await;
 
     // Apagando o registro caso o mesmo exista
@@ -78,10 +81,8 @@ pub async fn deletar_tarefa (
     Ok(())
 }
 
-pub async fn buscar_tarefa (
-    db: &TarefasDb,
-    id: Uuid
-) -> Result<models::Tarefa, errors::AppError> {
+#[instrument(skip(db), fields(id = %id))]
+pub async fn buscar_tarefa(db: &TarefasDb, id: Uuid) -> Result<models::Tarefa, errors::AppError> {
     let db = db.read().await;
 
     let tarefa = db.get(&id).ok_or(errors::AppError::NaoEncontrada)?;
@@ -89,37 +90,34 @@ pub async fn buscar_tarefa (
     Ok(tarefa.clone())
 }
 
-pub async fn listar_tarefas (
+#[instrument(skip(db), fields(pagina = parametros.pagina, limite = parametros.limite, concluida = parametros.concluida))]
+pub async fn listar_tarefas(
     db: &TarefasDb,
-    parametros: models::TarefaParametros
+    parametros: models::TarefaParametros,
 ) -> Result<Vec<models::Tarefa>, errors::AppError> {
     let db = db.read().await;
 
-    let mut lista_de_tarefas: Vec<models::Tarefa>  = db
+    let mut lista_de_tarefas: Vec<models::Tarefa> = db
         .values()
-        .filter(
-            |t| {
-                parametros.concluida.is_none_or(|filtro|t.concluida == filtro)
-            }
-        )
+        .filter(|t| {
+            parametros
+                .concluida
+                .is_none_or(|filtro| t.concluida == filtro)
+        })
         .cloned()
         .collect();
 
-    lista_de_tarefas.sort_by(
-        |a,b| {
-            match a.criada_em.cmp(&b.criada_em) {
-                Ordering::Equal => a.id.cmp(&b.id),
-                other => other
-            }
-        }
-    );
+    lista_de_tarefas.sort_by(|a, b| match a.criada_em.cmp(&b.criada_em) {
+        Ordering::Equal => a.id.cmp(&b.id),
+        other => other,
+    });
 
     let pagina = parametros.pagina.unwrap_or(1) as usize;
     let limite = parametros.limite.unwrap_or(10) as usize;
 
-    let lista_de_tarefas_paginas:Vec<models::Tarefa> = lista_de_tarefas
+    let lista_de_tarefas_paginas: Vec<models::Tarefa> = lista_de_tarefas
         .into_iter()
-        .skip((pagina-1)*limite)
+        .skip((pagina - 1) * limite)
         .take(limite)
         .collect();
 

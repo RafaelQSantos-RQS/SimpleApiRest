@@ -447,7 +447,7 @@ Se quiser ir além:
 - [x] Usar **`tokio::sync::RwLock`** em vez de `Mutex` (por quê seria melhor?)
 - [x] Extrair a lógica para um **service layer** (`src/services.rs`)
 - [x] Adicionar **testes de integração** com `axum::test`
-- [ ] Adicionar **logging** com `tracing` + `tracing-subscriber`
+- [x] Adicionar **logging** com `tracing` + `tracing-subscriber`
 - [ ] Adicionar **validação** com `validator` crate
 - [ ] Mudar para **banco de dados real** (SQLite com `sqlx`)
 - [ ] Adicionar **autenticação** com JWT

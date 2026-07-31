@@ -1,22 +1,27 @@
 use axum::{
-    Json, http::{StatusCode}, response::{IntoResponse, Response},
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
 };
 use serde_json::json;
+use tracing::{error, warn};
 
 #[derive(Debug)]
 pub enum AppError {
     NaoEncontrada,
-    DadosInvalidos(String)
+    DadosInvalidos(String),
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let (status, mensagem) = match self {
+        let (status, mensagem) = match &self {
             AppError::NaoEncontrada => {
+                error!(?self, "Tarefa não encontrada");
                 (StatusCode::NOT_FOUND, "Tarefa não encontrada".to_string())
             }
             AppError::DadosInvalidos(msg) => {
-                (StatusCode::BAD_REQUEST, msg)
+                warn!(?self, "Dados inválidos: {}", msg);
+                (StatusCode::BAD_REQUEST, msg.clone())
             }
         };
 

@@ -1,10 +1,10 @@
-use axum::http::{StatusCode};
+use axum::http::StatusCode;
 use axum_test::{TestResponse, TestServer};
 use serde_json::json;
 use simplerestapi::{AppState, criar_router};
-use uuid::Uuid;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 fn criar_servidor_teste() -> TestServer {
     let state: AppState = AppState {
@@ -39,14 +39,11 @@ async fn teste_criar_tarefa_com_sucesso() {
     });
 
     // Efeutnado a requisição
-    let resposta: TestResponse = server
-        .post("/tarefas")
-        .json(&body)
-        .await;
+    let resposta: TestResponse = server.post("/tarefas").json(&body).await;
 
     // Verificando o status code
     resposta.assert_status(StatusCode::CREATED);
-    
+
     // Deserializadno o json para análise
     let tarefa_criada: serde_json::Value = resposta.json();
 
@@ -68,10 +65,7 @@ async fn teste_criar_tarefa_com_titulo_vazio() {
         "descricao": "Tarefa sem titulo"
     });
 
-    let resposta = server
-        .post("/tarefas")
-        .json(&body)
-        .await;
+    let resposta = server.post("/tarefas").json(&body).await;
 
     resposta.assert_status(StatusCode::BAD_REQUEST);
 }
@@ -82,9 +76,7 @@ async fn teste_buscar_tarefa_inexistente() {
 
     let id_teste = Uuid::new_v4();
 
-    let resposta = server
-        .get(format!("/tarefas/{}",id_teste).as_str())
-        .await;
+    let resposta = server.get(format!("/tarefas/{}", id_teste).as_str()).await;
 
     resposta.assert_status(StatusCode::NOT_FOUND);
 }
@@ -98,10 +90,7 @@ async fn teste_atualizar_tarefa_com_sucesso() {
         "descricao": "Terminar o checklist da API"
     });
 
-    let req_criacao = server
-        .post("/tarefas")
-        .json(&body)
-        .await;
+    let req_criacao = server.post("/tarefas").json(&body).await;
 
     // Deserializadno o json para análise
     let tarefa_criada: serde_json::Value = req_criacao.json();
@@ -121,16 +110,16 @@ async fn teste_atualizar_tarefa_com_sucesso() {
 
     let id = tarefa_criada["id"].as_str().unwrap();
     let req_atualizacao = server
-        .put(&format!("/tarefas/{}",id))
+        .put(&format!("/tarefas/{}", id))
         .json(&payload_para_atualizar)
         .await;
 
     req_atualizacao.assert_status(StatusCode::OK);
-    
+
     let tarefa_atualizada: serde_json::Value = req_atualizacao.json();
 
-    assert_eq!(tarefa_atualizada["titulo"],"Estudar Rust");
-    assert_eq!(tarefa_atualizada["descricao"],"Descrição Atualizada");
+    assert_eq!(tarefa_atualizada["titulo"], "Estudar Rust");
+    assert_eq!(tarefa_atualizada["descricao"], "Descrição Atualizada");
     assert_eq!(tarefa_atualizada["concluida"], true);
 }
 
@@ -143,10 +132,7 @@ async fn teste_deletar_tarefa_com_sucesso() {
         "descricao": "Terminar o checklist da API"
     });
 
-    let req_criacao = server
-        .post("/tarefas")
-        .json(&body)
-        .await;
+    let req_criacao = server.post("/tarefas").json(&body).await;
 
     let tarefa_criada: serde_json::Value = req_criacao.json();
 
@@ -160,7 +146,7 @@ async fn teste_deletar_tarefa_com_sucesso() {
     let id_para_deletar = tarefa_criada["id"].as_str().unwrap();
 
     let req_deletar = server
-        .delete(&format!("/tarefas/{}",id_para_deletar))
+        .delete(&format!("/tarefas/{}", id_para_deletar))
         .await;
 
     req_deletar.assert_status(StatusCode::NO_CONTENT);
