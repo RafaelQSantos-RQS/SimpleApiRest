@@ -1,3 +1,4 @@
+use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
 use axum::{
     Json,
     http::StatusCode,
@@ -11,11 +12,40 @@ use validator::ValidationErrors;
 pub enum AppError {
     NaoEncontrada,
     Validacao(ValidationErrors),
+    Rejeicao(StatusCode, String),
+    Interno(String),
 }
 
 impl From<ValidationErrors> for AppError {
     fn from(err: ValidationErrors) -> Self {
         AppError::Validacao(err)
+    }
+}
+
+impl From<sqlx::Error> for AppError {
+    fn from(err: sqlx::Error) -> Self {
+        match err {
+            sqlx::Error::RowNotFound => AppError::NaoEncontrada,
+            other => AppError::Interno(other.to_string()),
+        }
+    }
+}
+
+impl From<JsonRejection> for AppError {
+    fn from(value: JsonRejection) -> Self {
+        AppError::Rejeicao(value.status(), value.body_text())
+    }
+}
+
+impl From<PathRejection> for AppError {
+    fn from(value: PathRejection) -> Self {
+        AppError::Rejeicao(value.status(), value.body_text())
+    }
+}
+
+impl From<QueryRejection> for AppError {
+    fn from(value: QueryRejection) -> Self {
+        AppError::Rejeicao(value.status(), value.body_text())
     }
 }
 
@@ -47,6 +77,17 @@ impl IntoResponse for AppError {
                     StatusCode::BAD_REQUEST,
                     json!({"erro": "Dados inválidos", "detalhes": detalhes}),
                 )
+            }
+            AppError::Interno(msg) => {
+                error!(?self, "Erro interno {}", msg);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    json!({"erro": "Erro interno do servidor"}),
+                )
+            }
+            AppError::Rejeicao(status, mensagem) => {
+                warn!(?self, "Requisição rejeitada");
+                (*status, json!({"erro": mensagem}))
             }
         };
 

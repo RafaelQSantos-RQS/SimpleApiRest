@@ -1,27 +1,26 @@
 use axum::{
     Json, Router,
-    extract::{Path, Query, State},
+    extract::State,
     http::StatusCode,
     routing::{get, post},
 };
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::info;
 use uuid::Uuid;
 
+use crate::extractors::{AppJson, AppPath, AppQuery};
 use crate::services::{
     atualizar_tarefa, buscar_tarefa, criar_tarefa, deletar_tarefa, listar_tarefas,
 };
 
+use sqlx::SqlitePool;
 use validator::Validate;
 
 mod errors;
+mod extractors;
 mod models;
 mod services;
 
-pub type TarefasDb = Arc<RwLock<HashMap<Uuid, models::Tarefa>>>;
-
+pub type TarefasDb = SqlitePool;
 #[derive(Clone)]
 pub struct AppState {
     pub db: TarefasDb,
@@ -29,7 +28,7 @@ pub struct AppState {
 
 pub async fn listar_tarefas_handler(
     State(state): State<AppState>,
-    Query(params): Query<models::TarefaParametros>,
+    AppQuery(params): AppQuery<models::TarefaParametros>,
 ) -> Result<Json<Vec<models::Tarefa>>, errors::AppError> {
     info!(
         page = params.pagina,
@@ -45,7 +44,7 @@ pub async fn listar_tarefas_handler(
 
 pub async fn buscar_tarefa_handler(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    AppPath(id): AppPath<Uuid>,
 ) -> Result<Json<models::Tarefa>, errors::AppError> {
     info!(id = %id, "Buscando tarefa");
 
@@ -62,7 +61,7 @@ pub async fn buscar_tarefa_handler(
 
 pub async fn criar_tarefa_handler(
     State(state): State<AppState>,
-    Json(payload): Json<models::CriarTarefaRequest>,
+    AppJson(payload): AppJson<models::CriarTarefaRequest>,
 ) -> Result<(StatusCode, Json<models::Tarefa>), errors::AppError> {
     payload.validate()?;
 
@@ -83,8 +82,8 @@ pub async fn criar_tarefa_handler(
 
 pub async fn atualiza_tarefa_handler(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-    Json(payload): Json<models::AtualizarTarefaRequest>,
+    AppPath(id): AppPath<Uuid>,
+    AppJson(payload): AppJson<models::AtualizarTarefaRequest>,
 ) -> Result<Json<models::Tarefa>, errors::AppError> {
     payload.validate()?;
 
@@ -103,7 +102,7 @@ pub async fn atualiza_tarefa_handler(
 
 pub async fn deletar_tarefa_handler(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    AppPath(id): AppPath<Uuid>,
 ) -> Result<StatusCode, errors::AppError> {
     info!(id = %id, "Deletando tarefa");
 

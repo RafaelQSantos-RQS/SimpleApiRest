@@ -2,22 +2,31 @@ use axum::http::StatusCode;
 use axum_test::{TestResponse, TestServer};
 use serde_json::json;
 use simplerestapi::{AppState, criar_router};
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use sqlx::sqlite::SqlitePoolOptions;
 use uuid::Uuid;
 
-fn criar_servidor_teste() -> TestServer {
-    let state: AppState = AppState {
-        db: Arc::new(RwLock::new(HashMap::new())),
-    };
-    let app: axum::Router = criar_router(state);
+async fn criar_servidor_teste() -> TestServer {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .expect("Falha ao conectar no bando de dados");
+
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .expect("Falha ao rodar as migrations");
+    let state = AppState { db: pool };
+
+    let app = criar_router(state);
+
     TestServer::new(app)
 }
 
 #[tokio::test]
 async fn teste_listar_tarefas_vazia() {
     // Inicialiando o servidor
-    let server: TestServer = criar_servidor_teste();
+    let server: TestServer = criar_servidor_teste().await;
 
     // Efeutando a requisição de teste
     let resposta: TestResponse = server.get("/tarefas").await;
@@ -30,7 +39,7 @@ async fn teste_listar_tarefas_vazia() {
 #[tokio::test]
 async fn teste_criar_tarefa_com_sucesso() {
     // Inicializando o servidor de teste
-    let server: TestServer = criar_servidor_teste();
+    let server: TestServer = criar_servidor_teste().await;
 
     // Criando o body
     let body: serde_json::Value = json!({
@@ -58,7 +67,7 @@ async fn teste_criar_tarefa_com_sucesso() {
 
 #[tokio::test]
 async fn teste_criar_tarefa_com_titulo_vazio() {
-    let server = criar_servidor_teste();
+    let server = criar_servidor_teste().await;
 
     let body = json!({
         "titulo": "",
@@ -72,7 +81,7 @@ async fn teste_criar_tarefa_com_titulo_vazio() {
 
 #[tokio::test]
 async fn teste_buscar_tarefa_inexistente() {
-    let server = criar_servidor_teste();
+    let server = criar_servidor_teste().await;
 
     let id_teste = Uuid::new_v4();
 
@@ -83,7 +92,7 @@ async fn teste_buscar_tarefa_inexistente() {
 
 #[tokio::test]
 async fn teste_atualizar_tarefa_com_sucesso() {
-    let server = criar_servidor_teste();
+    let server = criar_servidor_teste().await;
 
     let body = json!({
         "titulo": "Estudar Rust",
@@ -125,7 +134,7 @@ async fn teste_atualizar_tarefa_com_sucesso() {
 
 #[tokio::test]
 async fn teste_deletar_tarefa_com_sucesso() {
-    let server = criar_servidor_teste();
+    let server = criar_servidor_teste().await;
 
     let body = json!({
         "titulo": "Estudar Rust",
@@ -154,7 +163,7 @@ async fn teste_deletar_tarefa_com_sucesso() {
 
 #[tokio::test]
 async fn teste_criar_tarefa_com_titulo_de_espacos() {
-    let server = criar_servidor_teste();
+    let server = criar_servidor_teste().await;
 
     let body = json!({
         "titulo": "    ",
@@ -164,4 +173,23 @@ async fn teste_criar_tarefa_com_titulo_de_espacos() {
     let resposta = server.post("/tarefas").json(&body).await;
 
     assert_eq!(resposta.status_code(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn teste_listar_tarefas_com_limite_invalido() {
+    let server = criar_servidor_teste().await;
+
+    for i in 0..3 {
+        let body = json!({
+            "titulo": format!("Tarefa {}", i),
+            "descricao": "Teste de limite"
+        });
+        server.post("/tarefas").json(&body).await;
+    }
+
+    let resposta = server.get("/tarefas?limite=-5").await;
+    resposta.assert_status(StatusCode::OK);
+
+    let tarefas: serde_json::Value = resposta.json();
+    assert_eq!(tarefas.as_array().unwrap().len(), 1);
 }

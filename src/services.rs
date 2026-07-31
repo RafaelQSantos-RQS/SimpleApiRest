@@ -1,14 +1,9 @@
 use chrono::Utc;
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::TarefasDb;
 use crate::{errors, models};
-
-type TarefasDb = Arc<RwLock<HashMap<Uuid, models::Tarefa>>>;
 
 #[instrument(skip(db), fields(titulo = %payload.titulo))]
 pub async fn criar_tarefa(
@@ -16,7 +11,7 @@ pub async fn criar_tarefa(
     payload: models::CriarTarefaRequest,
 ) -> Result<models::Tarefa, errors::AppError> {
     let agora = Utc::now();
-    let tarefa_a_ser_criada = models::Tarefa {
+    let tarefa = models::Tarefa {
         id: Uuid::new_v4(),
         titulo: payload.titulo,
         descricao: payload.descricao.unwrap_or_default(),
@@ -25,11 +20,20 @@ pub async fn criar_tarefa(
         atualizada_em: agora,
     };
 
-    let mut db = db.write().await;
+    sqlx::query(
+        "INSERT INTO tarefas (id, titulo, descricao, concluida, criada_em, atualizada_em)
+        VALUES (?,?,?,?,?,?)",
+    )
+    .bind(tarefa.id)
+    .bind(&tarefa.titulo)
+    .bind(&tarefa.descricao)
+    .bind(tarefa.concluida)
+    .bind(tarefa.criada_em)
+    .bind(tarefa.atualizada_em)
+    .execute(db)
+    .await?;
 
-    db.insert(tarefa_a_ser_criada.id, tarefa_a_ser_criada.clone());
-
-    Ok(tarefa_a_ser_criada)
+    Ok(tarefa)
 }
 
 #[instrument(skip(db), fields(id = %id))]
@@ -38,44 +42,49 @@ pub async fn atualizar_tarefa(
     id: Uuid,
     payload: models::AtualizarTarefaRequest,
 ) -> Result<models::Tarefa, errors::AppError> {
-    let mut db = db.write().await;
+    let tarefa_atualizada = sqlx::query_as::<_, models::Tarefa>(
+        "UPDATE tarefas SET
+            titulo = COALESCE(?, titulo),
+            descricao = COALESCE(?, descricao),
+            concluida = COALESCE(?, concluida),
+            atualizada_em = ?
+        WHERE id = ?
+        RETURNING *
+        ",
+    )
+    .bind(payload.titulo)
+    .bind(payload.descricao)
+    .bind(payload.concluida)
+    .bind(Utc::now())
+    .bind(id)
+    .fetch_one(db)
+    .await?;
 
-    // Buscando se o ID existe no banco
-    let tarefa = db.get_mut(&id).ok_or(errors::AppError::NaoEncontrada)?;
-
-    if let Some(titulo) = payload.titulo {
-        tarefa.titulo = titulo;
-    }
-
-    if let Some(descricao) = payload.descricao {
-        tarefa.descricao = descricao;
-    }
-
-    if let Some(concluida) = payload.concluida {
-        tarefa.concluida = concluida;
-    }
-
-    tarefa.atualizada_em = Utc::now();
-
-    Ok(tarefa.clone())
+    Ok(tarefa_atualizada)
 }
 
 #[instrument(skip(db), fields(id = %id))]
 pub async fn deletar_tarefa(db: &TarefasDb, id: Uuid) -> Result<(), errors::AppError> {
-    let mut db = db.write().await;
+    let resultado = sqlx::query("DELETE FROM tarefas WHERE id = ?")
+        .bind(id)
+        .execute(db)
+        .await?;
 
-    // Apagando o registro caso o mesmo exista
-    db.remove(&id).ok_or(errors::AppError::NaoEncontrada)?;
+    if resultado.rows_affected() == 0 {
+        return Err(errors::AppError::NaoEncontrada);
+    }
+
     Ok(())
 }
 
 #[instrument(skip(db), fields(id = %id))]
 pub async fn buscar_tarefa(db: &TarefasDb, id: Uuid) -> Result<models::Tarefa, errors::AppError> {
-    let db = db.read().await;
+    let tarefa = sqlx::query_as::<_, models::Tarefa>("select * from tarefas where id = ?")
+        .bind(id)
+        .fetch_one(db)
+        .await?;
 
-    let tarefa = db.get(&id).ok_or(errors::AppError::NaoEncontrada)?;
-
-    Ok(tarefa.clone())
+    Ok(tarefa)
 }
 
 #[instrument(skip(db), fields(pagina = parametros.pagina, limite = parametros.limite, concluida = parametros.concluida))]
@@ -83,31 +92,25 @@ pub async fn listar_tarefas(
     db: &TarefasDb,
     parametros: models::TarefaParametros,
 ) -> Result<Vec<models::Tarefa>, errors::AppError> {
-    let db = db.read().await;
+    let pagina = parametros.pagina.unwrap_or(1).max(1) as usize;
+    let limite = parametros.limite.unwrap_or(10).clamp(1, 100) as usize;
 
-    let mut lista_de_tarefas: Vec<models::Tarefa> = db
-        .values()
-        .filter(|t| {
-            parametros
-                .concluida
-                .is_none_or(|filtro| t.concluida == filtro)
-        })
-        .cloned()
-        .collect();
+    let lista_de_tarefas = sqlx::query_as::<_, models::Tarefa>(
+        "
+        SELECT
+            *
+        FROM tarefas
+        WHERE (? is NULL OR concluida = ?)
+        ORDER BY criada_em, id ASC
+        LIMIT ? OFFSET ?
+        ",
+    )
+    .bind(parametros.concluida)
+    .bind(parametros.concluida)
+    .bind(limite as i64)
+    .bind(((pagina - 1) * limite) as i64)
+    .fetch_all(db)
+    .await?;
 
-    lista_de_tarefas.sort_by(|a, b| match a.criada_em.cmp(&b.criada_em) {
-        Ordering::Equal => a.id.cmp(&b.id),
-        other => other,
-    });
-
-    let pagina = parametros.pagina.unwrap_or(1) as usize;
-    let limite = parametros.limite.unwrap_or(10) as usize;
-
-    let lista_de_tarefas_paginas: Vec<models::Tarefa> = lista_de_tarefas
-        .into_iter()
-        .skip((pagina - 1) * limite)
-        .take(limite)
-        .collect();
-
-    Ok(lista_de_tarefas_paginas)
+    Ok(lista_de_tarefas)
 }
