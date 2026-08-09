@@ -4,11 +4,11 @@ use sqlx::prelude::FromRow;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, FromRow)]
 pub struct Tarefa {
     pub id: Uuid,
     pub titulo: String,
-    pub descricao: String,
+    pub descricao: Option<String>,
     pub concluida: bool,
     pub criada_em: DateTime<Utc>,
     pub atualizada_em: DateTime<Utc>,
@@ -40,6 +40,20 @@ pub struct AtualizarTarefaRequest {
 #[derive(Debug, Deserialize)]
 pub struct TarefaParametros {
     pub concluida: Option<bool>,
-    pub pagina: Option<i32>,
-    pub limite: Option<i32>,
+    pub pagina: Option<i64>,
+    pub limite: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Paginacao {
+    pub pagina: i64,
+    pub limite: i64,
+    pub total: i64,
+    pub tem_mais: bool
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaginaDeTarefas {
+    pub dados: Vec<Tarefa>,
+    pub paginacao: Paginacao
 }

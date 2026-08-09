@@ -29,7 +29,7 @@ pub struct AppState {
 pub async fn listar_tarefas_handler(
     State(state): State<AppState>,
     AppQuery(params): AppQuery<models::TarefaParametros>,
-) -> Result<Json<Vec<models::Tarefa>>, errors::AppError> {
+) -> Result<Json<models::PaginaDeTarefas>, errors::AppError> {
     info!(
         page = params.pagina,
         limit = params.limite,
@@ -38,7 +38,7 @@ pub async fn listar_tarefas_handler(
 
     let tarefas_paginadas = listar_tarefas(&state.db, params).await?;
 
-    info!(quantidade = tarefas_paginadas.len(), "Tarefas enviadas");
+    info!(quantidade = tarefas_paginadas.dados.len(), "Tarefas enviadas");
     Ok(Json(tarefas_paginadas))
 }
 

@@ -1,4 +1,4 @@
-use axum::http::StatusCode;
+use axum::{http::StatusCode};
 use axum_test::{TestResponse, TestServer};
 use serde_json::json;
 use simplerestapi::{AppState, criar_router};
@@ -33,7 +33,15 @@ async fn teste_listar_tarefas_vazia() {
 
     // Verificando
     resposta.assert_status(StatusCode::OK);
-    resposta.assert_json(&json!([]));
+    resposta.assert_json(&json!({
+        "dados":[],
+        "paginacao": {
+            "pagina": 1,
+            "limite": 10,
+            "total": 0,
+            "tem_mais": false
+        }
+    }));
 }
 
 #[tokio::test]
@@ -77,6 +85,23 @@ async fn teste_criar_tarefa_com_titulo_vazio() {
     let resposta = server.post("/tarefas").json(&body).await;
 
     resposta.assert_status(StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn teste_criar_tarefa_sem_descricao() {
+    let server = criar_servidor_teste().await;
+
+    let body = json!({
+        "titulo": "Tenho titulo"
+    });
+
+    let resposta = server.post("/tarefas").json(&body).await;
+
+    resposta.assert_status(StatusCode::CREATED);
+
+    let tarefa_criada: serde_json::Value = resposta.json();
+    assert!(tarefa_criada.get("descricao").is_some(), "O campo descrição deveria existir no JSON");
+    assert!(tarefa_criada["descricao"].is_null());
 }
 
 #[tokio::test]
@@ -191,5 +216,8 @@ async fn teste_listar_tarefas_com_limite_invalido() {
     resposta.assert_status(StatusCode::OK);
 
     let tarefas: serde_json::Value = resposta.json();
-    assert_eq!(tarefas.as_array().unwrap().len(), 1);
+    assert_eq!(tarefas["dados"].as_array().unwrap().len(), 1);
+    assert_eq!(tarefas["paginacao"]["limite"], 1);
+    assert_eq!(tarefas["paginacao"]["total"], 3);
+    assert_eq!(tarefas["paginacao"]["tem_mais"], true);
 }
