@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-08-09T00:00:00Z",
+  "libraries": {
+    "jsonwebtoken": {
+      "files": [
+        {
+          "filename": "encode-decode-hs256.md",
+          "topic": "encode/decode HS256, Validation defaults, breaking changes",
+          "tech_stack": "axum 0.8 / sqlx 0.9 / SQLite",
+          "fetched": "2026-08-09T00:00:00Z",
+          "source": "Context7 API + docs.rs + CHANGELOG"
+        }
+      ]
+    },
+    "argon2": {
+      "files": [
+        {
+          "filename": "hash-verify-phc.md",
+          "topic": "hash/verify API, feature flags, params, PHC storage",
+          "tech_stack": "axum 0.8 / sqlx 0.9 / SQLite",
+          "fetched": "2026-08-09T00:00:00Z",
+          "source": "Context7 API + docs.rs"
+        }
+      ]
+    }
+  }
+}

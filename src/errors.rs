@@ -49,6 +49,15 @@ impl From<QueryRejection> for AppError {
     }
 }
 
+impl From<argon2::password_hash::Error> for AppError {
+    fn from(value: argon2::password_hash::Error) -> Self {
+        match err {
+            argon2::password_hash::Error => AppError::Interno,
+            other => AppError
+        }
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, mensagem) = match &self {

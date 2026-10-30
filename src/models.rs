@@ -57,3 +57,40 @@ pub struct PaginaDeTarefas {
     pub dados: Vec<Tarefa>,
     pub paginacao: Paginacao
 }
+
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct Usuario {
+    pub id: Uuid,
+    pub nome: String,
+    pub email: String,
+    pub senha_hash: String,
+    pub criada_em: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UsuarioPublico {
+    pub id: Uuid,
+    pub nome: String,
+    pub email: String,
+    pub criada_em: DateTime<Utc>
+}
+
+impl From<Usuario> for UsuarioPublico {
+    fn from(u: Usuario) -> Self {
+        Self {
+            id: u.id,
+            nome: u.nome,
+            email: u.email,
+            criada_em: u.criada_em
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CriarUsuarioRequest {
+    pub nome: String,
+    #[validate(email)]
+    pub email: String,
+    #[validate(length(min = 8, max = 64))]
+    pub senha: String
+}

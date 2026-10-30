@@ -19,6 +19,7 @@ mod errors;
 mod extractors;
 mod models;
 mod services;
+mod auth;
 
 pub type TarefasDb = SqlitePool;
 #[derive(Clone)]
